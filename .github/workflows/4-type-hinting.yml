@@ -1,0 +1,84 @@
+name: Step 4, Type hinting
+
+# This step triggers after TBD-step-4-event-desc
+# This step sets STEP to 5
+# This step closes <details id=4> and opens <details id=5>
+
+# This will run every time we TBD-step-4-event-desc
+# Reference https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - start-python
+
+# Reference https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+permissions:
+  # Need `contents: read` to checkout the repository
+  # Need `contents: write` to update the step metadata
+  contents: write
+
+jobs:
+  on_type_hinting:
+    name: On commit, start-python, type hinting
+
+    # We will only run this action when:
+    # 1. This repository isn't the template repository
+    # Reference https://docs.github.com/en/actions/learn-github-actions/contexts
+    # Reference https://docs.github.com/en/actions/learn-github-actions/expressions
+    if: ${{ !github.event.repository.is_template }}
+
+    # We'll run Ubuntu for performance instead of Mac or Windows
+    runs-on: ubuntu-latest
+
+    steps:
+      # We'll need to check out the repository so that we can edit the README
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # Let's get all the branches
+
+      # TBD-step-4-additional-steps
+      - name: Setup python
+        uses: actions/setup-python@v2
+
+      - name: Setup mypy
+        run: |
+          pip install mypy
+
+      - name: Check for type hinting
+        run: |
+          mypy --disallow-untyped-defs hello_numbers.py
+
+
+      # Update README to close <details id=4> and open <details id=5>
+      # and set STEP to '5'
+      - name: Update to step 5
+        uses: skills/action-update-step@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          from_step: 4
+          to_step: 5
+          branch_name: start-python
+
+      - name: Prepare a file
+        run: |
+          echo "Make sure we are on step 5"
+          if [ "$(cat .github/script/STEP)" != 5 ]; then
+            echo "Current step is not 5"
+            exit 0
+          else
+            echo "Make a file"
+            touch tests/test_hello_numbers.py
+            echo "import hello_numbers" >> tests/test_hello_numbers.py
+
+            echo "Make a commit"
+            BRANCH=start-python
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add hello_numbers.py
+            git commit --message="Edit test_hello_numbers.py file"
+
+            echo "Push"
+            git push --set-upstream origin $BRANCH
+          fi
